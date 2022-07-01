@@ -1,1 +1,1 @@
-# test
+# Tera Term ランチャー
