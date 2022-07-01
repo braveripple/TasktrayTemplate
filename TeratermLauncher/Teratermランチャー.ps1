@@ -16,13 +16,13 @@ $EDITOR_PATH = "notepad.exe"
 $mutex = New-Object System.Threading.Mutex($false, $MUTEX_NAME);
 
 # 接続先の選択画面を開く
-function displayAccessPoint {
+function displaySelect {
     try {
-        $severList = Import-Csv -Path $SERVER_FILE -Delimiter "," -Encoding utf8
-        $select = $SeverList | Select-Object User, Host, Kanji, Memo | Out-GridView -OutputMode Multiple -Title "接続先の選択"
+        $serverlist = Import-Csv -Path $SERVER_FILE -Delimiter "," -Encoding utf8
+        $select = $serverlist | Select-Object User, Host, Kanji, Memo | Out-GridView -OutputMode Multiple -Title "接続先の選択"
         $select | ForEach-Object {
             $tmp = $_
-            $serverData = $severList | Where-Object { ($_.Host -eq $tmp.Host) -and ($_.User -eq $tmp.User) } | Select-Object -First 1
+            $serverData = $serverlist | Where-Object { ($_.Host -eq $tmp.Host) -and ($_.User -eq $tmp.User) } | Select-Object -First 1
             & $TERATERM_PATH `
             /ssh "$($serverData.Host)" /2 /auth=password `
             /user="$($serverData.User)" /passwd="$($serverData.Password)" /L="$HOME\&h_%Y%m%d.log" /KR="$($serverData.Kanji)"
@@ -65,7 +65,7 @@ function displayTooltip {
         ####################################################
         $notifyIcon.add_Click( {
                 if ($_.Button -eq [System.Windows.Forms.MouseButtons]::Left) {
-                    displayAccessPoint
+                    displaySelect
                 }
             });
 
@@ -89,7 +89,7 @@ function displayTooltip {
         $notifyIcon.Visible = $true;
 
         # 起動時は接続先の選択画面を開く
-        displayAccessPoint
+        displaySelect
 
         # 表示
         [void][System.Windows.Forms.Application]::Run($appContext);
@@ -114,11 +114,18 @@ try {
     $Host.UI.RawUI.WindowTitle = $APPLICATION_NAME
     # 多重起動チェック
     if ($mutex.WaitOne(0, $false)) {
-        hiddenTaskber
-        displayTooltip
-        $retcode = 0;
+        if (Test-Path -LiteralPath $TERATERM_PATH -PathType Leaf) {
+            hiddenTaskber
+            displayTooltip
+            $retcode = 0;
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("Tera Termが見つかりません。`n$TERATERM_PATH", $APPLICATION_NAME, 0, 16) > $null
+            $retcode = 255;
+        }
+        
     }
     else {
+        [System.Windows.Forms.MessageBox]::Show("すでに起動中です。", $APPLICATION_NAME, 0, 48) > $null
         $retcode = 255;
     }
 }
